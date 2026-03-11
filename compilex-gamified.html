@@ -1,0 +1,1647 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CompileX — Level Up Your Code</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Orbitron:wght@700;800;900&display=swap" rel="stylesheet">
+<style>
+/* =====================================================
+   TOKENS
+   ===================================================== */
+:root {
+  --bg: #f0f4ff;
+  --bg2: #e8eeff;
+  --surface: #ffffff;
+  --surface2: #f5f7ff;
+  --border: #dde3fa;
+  --border2: #c8d0f0;
+  --neon: #4361ee;
+  --neon2: #7c3aed;
+  --neon3: #f72585;
+  --neon4: #f59e0b;
+  --neon5: #06b6d4;
+  --green: #10b981;
+  --text: #1a1f3c;
+  --text2: #4a5280;
+  --muted: #8b92b8;
+  --shadow: 0 4px 20px rgba(67,97,238,0.1);
+  --shadow-lg: 0 8px 40px rgba(67,97,238,0.15);
+  --glow-neon: 0 4px 20px rgba(67,97,238,0.35), 0 1px 6px rgba(67,97,238,0.2);
+  --glow-purple: 0 4px 20px rgba(124,58,237,0.35);
+  --glow-pink: 0 4px 20px rgba(247,37,133,0.3);
+  --radius: 16px;
+  --radius-sm: 10px;
+  --radius-lg: 24px;
+}
+
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+html { scroll-behavior:smooth; }
+
+body {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  overflow-x: hidden;
+  cursor: default;
+}
+
+/* Floating dots */
+#stars { position:fixed; inset:0; pointer-events:none; z-index:0; overflow:hidden; }
+.star { position:absolute; border-radius:50%; animation:floatDot var(--d,6s) ease-in-out infinite; opacity:var(--o,0.2); }
+@keyframes floatDot { 0%,100%{transform:translateY(0) scale(1)} 50%{transform:translateY(-14px) scale(1.3)} }
+
+/* =====================================================
+   PAGES
+   ===================================================== */
+.page { display:none; min-height:100vh; position:relative; z-index:1; }
+.page.active { display:block; }
+#page-compiler.active { display:flex; flex-direction:column; height:100vh; padding-top:68px; }
+
+/* =====================================================
+   NAVBAR
+   ===================================================== */
+.navbar {
+  position:fixed; top:0; left:0; right:0; z-index:1000;
+  display:flex; align-items:center; gap:12px;
+  padding:0 28px; height:68px;
+  background:rgba(255,255,255,0.94);
+  box-shadow:0 2px 20px rgba(67,97,238,0.08);
+  backdrop-filter:blur(20px);
+  border-bottom:1px solid var(--border);
+}
+
+.nav-logo {
+  font-family:'Plus Jakarta Sans',sans-serif;
+  font-size:1.25rem; font-weight:800;
+  letter-spacing:-0.5px;
+  background:linear-gradient(135deg,var(--neon),var(--neon2));
+  -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;
+  cursor:pointer; flex-shrink:0; text-decoration:none;
+}
+
+.nav-links { display:flex; align-items:center; gap:2px; margin:0 auto; list-style:none; }
+
+.nav-links a {
+  padding:6px 14px; border-radius:8px;
+  font-size:0.875rem; font-weight:600;
+  color:var(--text2); text-decoration:none; cursor:pointer;
+  transition:all 0.2s;
+}
+.nav-links a:hover { color:var(--neon); background:rgba(67,97,238,0.08); }
+.nav-links a.active { color:var(--neon); background:rgba(67,97,238,0.1); }
+
+/* Player HUD in navbar */
+.nav-hud {
+  display:flex; align-items:center; gap:14px; flex-shrink:0;
+}
+
+.hud-xp {
+  display:flex; flex-direction:column; gap:3px; min-width:120px;
+}
+.hud-xp-label {
+  display:flex; justify-content:space-between;
+  font-size:0.68rem; font-weight:700; letter-spacing:0.3px;
+  color:var(--neon2);
+}
+.xp-bar-bg {
+  height:6px; background:#e0e7ff; border-radius:3px; overflow:hidden;
+}
+.xp-bar-fill {
+  height:100%; border-radius:3px;
+  background:linear-gradient(90deg,var(--neon),var(--neon2));
+  box-shadow:0 0 8px var(--neon);
+  transition:width 0.8s cubic-bezier(.4,0,.2,1);
+}
+
+.hud-level {
+  display:flex; align-items:center; justify-content:center;
+  width:40px; height:40px; border-radius:10px;
+  background:linear-gradient(135deg,var(--neon2),var(--neon3));
+  font-family:'Orbitron',monospace; font-size:0.75rem; font-weight:900;
+  color:white; box-shadow:0 4px 14px rgba(124,58,237,0.35);
+}
+
+.hud-coins {
+  display:flex; align-items:center; gap:6px;
+  padding:6px 12px; border-radius:20px;
+  background:rgba(245,158,11,0.1); border:1px solid rgba(245,158,11,0.3);
+  font-weight:800; font-size:0.85rem; color:var(--neon4);
+}
+
+.btn-nav-login {
+  padding:8px 18px; border-radius:10px;
+  background:linear-gradient(135deg,var(--neon2),var(--neon3));
+  color:white; border:none; font-family:'Nunito',sans-serif;
+  font-weight:800; font-size:0.85rem; cursor:pointer;
+  transition:all 0.2s; box-shadow:var(--glow-purple);
+}
+.btn-nav-login:hover { transform:translateY(-1px); box-shadow:0 0 30px rgba(124,111,255,0.6); }
+
+/* =====================================================
+   HOME PAGE
+   ===================================================== */
+
+/* HERO */
+.hero {
+  min-height:100vh; display:flex; flex-direction:column;
+  align-items:center; justify-content:center;
+  padding:100px 24px 60px; text-align:center;
+  position:relative; overflow:hidden;
+}
+
+/* Glowing grid */
+.hero::before {
+  content:'';
+  position:absolute; inset:0;
+  background-image:
+    linear-gradient(rgba(67,97,238,0.06) 1px, transparent 1px),
+    linear-gradient(90deg,rgba(67,97,238,0.06) 1px, transparent 1px);
+  background-size:48px 48px;
+  animation:gridMove 20s linear infinite;
+  z-index:0;
+}
+@keyframes gridMove { from{background-position:0 0} to{background-position:48px 48px} }
+
+.hero-content { position:relative; z-index:1; max-width:900px; }
+
+.hero-badge {
+  display:inline-flex; align-items:center; gap:8px;
+  padding:6px 18px; border-radius:100px;
+  background:rgba(67,97,238,0.08); border:1px solid rgba(67,97,238,0.2);
+  font-size:0.82rem; font-weight:600; color:var(--neon);
+  letter-spacing:0.3px;
+  margin-bottom:28px; animation:fadeUp 0.5s ease both;
+}
+.hero-badge .pulse-dot {
+  width:8px; height:8px; border-radius:50%; background:var(--neon);
+  box-shadow:0 0 8px var(--neon); animation:pulseDot 1.5s ease-in-out infinite;
+}
+@keyframes pulseDot { 0%,100%{transform:scale(1)} 50%{transform:scale(1.5)} }
+
+.hero h1 {
+  font-family:'Plus Jakarta Sans',sans-serif;
+  font-size:clamp(2.6rem,7vw,5rem);
+  font-weight:800; line-height:1.06;
+  letter-spacing:-2px; margin-bottom:20px;
+  animation:fadeUp 0.5s 0.1s ease both;
+}
+
+.h1-line1 { color:var(--text); display:block; }
+.h1-line2 {
+  display:block;
+  background:linear-gradient(135deg,var(--neon) 0%,var(--neon2) 50%,var(--neon3) 100%);
+  -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;
+  filter:drop-shadow(0 0 12px rgba(67,97,238,0.25));
+  animation:textShimmer 3s ease-in-out infinite;
+}
+@keyframes textShimmer { 0%,100%{filter:drop-shadow(0 0 12px rgba(67,97,238,0.3))} 50%{filter:drop-shadow(0 0 20px rgba(124,58,237,0.4))} }
+
+.hero-sub {
+  font-size:1.1rem; color:var(--text2); line-height:1.75;
+  max-width:580px; margin:0 auto 40px; font-weight:600;
+  animation:fadeUp 0.5s 0.2s ease both;
+}
+
+.hero-ctas {
+  display:flex; gap:14px; justify-content:center; flex-wrap:wrap;
+  margin-bottom:56px; animation:fadeUp 0.5s 0.3s ease both;
+}
+
+.btn-hero-main {
+  display:inline-flex; align-items:center; gap:10px;
+  padding:16px 36px; border-radius:14px;
+  background:linear-gradient(135deg,var(--neon),var(--neon2));
+  color:white; font-family:'Plus Jakarta Sans',sans-serif;
+  font-weight:700; font-size:0.95rem; letter-spacing:-0.2px;
+  border:none; cursor:pointer; transition:all 0.2s;
+  box-shadow:var(--glow-neon);
+}
+.btn-hero-main:hover { transform:translateY(-3px) scale(1.03); box-shadow:0 0 40px rgba(0,245,196,0.6), 0 0 80px rgba(0,245,196,0.2); }
+
+.btn-hero-sec {
+  display:inline-flex; align-items:center; gap:10px;
+  padding:16px 36px; border-radius:14px;
+  background:white; border:1.5px solid var(--border2);
+  box-shadow:var(--shadow);
+  color:var(--text2); font-family:'Plus Jakarta Sans',sans-serif;
+  font-weight:600; font-size:0.95rem;
+  cursor:pointer; transition:all 0.2s;
+}
+.btn-hero-sec:hover { border-color:var(--neon2); color:var(--neon2); box-shadow:var(--glow-purple); transform:translateY(-2px); }
+
+/* Floating stat cards */
+.hero-stats {
+  display:flex; gap:20px; justify-content:center; flex-wrap:wrap;
+  animation:fadeUp 0.5s 0.4s ease both;
+}
+
+.stat-card {
+  display:flex; align-items:center; gap:12px;
+  padding:14px 22px; border-radius:14px;
+  background:white; border:1px solid var(--border); box-shadow:var(--shadow);
+  backdrop-filter:blur(10px); transition:all 0.3s;
+}
+.stat-card:hover { border-color:var(--neon); box-shadow:var(--shadow-lg); transform:translateY(-4px); }
+.stat-icon { font-size:1.6rem; }
+.stat-info { text-align:left; }
+.stat-num { font-family:'Orbitron',monospace; font-size:1.3rem; font-weight:900; color:var(--neon); line-height:1; }
+.stat-label { font-size:0.72rem; color:var(--text2); font-weight:700; text-transform:uppercase; letter-spacing:0.5px; }
+
+@keyframes fadeUp { from{opacity:0;transform:translateY(28px)} to{opacity:1;transform:translateY(0)} }
+
+/* =====================================================
+   GAME SECTION — XP, Badges, Leaderboard preview
+   ===================================================== */
+.game-section {
+  padding:100px 40px;
+  max-width:1280px; margin:0 auto;
+  position:relative; z-index:1;
+}
+
+.section-label {
+  display:inline-flex; align-items:center; gap:8px;
+  font-family:'Plus Jakarta Sans',sans-serif; font-size:0.78rem; font-weight:700;
+  letter-spacing:1px; text-transform:uppercase;
+  color:var(--neon); margin-bottom:16px;
+}
+.section-label::before { content:''; width:20px; height:2px; background:var(--neon); }
+
+.section-title {
+  font-family:'Plus Jakarta Sans',sans-serif;
+  font-size:clamp(1.8rem,4vw,2.8rem); font-weight:800;
+  letter-spacing:-1px; line-height:1.1;
+  color:var(--text); margin-bottom:14px;
+}
+
+.section-sub {
+  font-size:1rem; color:var(--text2); line-height:1.7;
+  font-weight:600; max-width:500px; margin-bottom:56px;
+}
+
+/* Game cards grid */
+.game-grid {
+  display:grid; grid-template-columns:repeat(3,1fr); gap:20px;
+}
+
+.game-card {
+  background:white; border:1px solid var(--border);
+  box-shadow:0 2px 12px rgba(67,97,238,0.07);
+  border-radius:var(--radius-lg); padding:28px;
+  position:relative; overflow:hidden; cursor:pointer;
+  transition:all 0.3s;
+}
+.game-card::before {
+  content:''; position:absolute; inset:0;
+  background:linear-gradient(135deg,var(--card-glow-a,rgba(0,245,196,0)),var(--card-glow-b,transparent));
+  opacity:0; transition:opacity 0.3s;
+}
+.game-card:hover { transform:translateY(-6px); border-color:var(--card-border,var(--neon)); }
+.game-card:hover::before { opacity:1; }
+
+.game-card.neon { --card-glow-a:rgba(67,97,238,0.06); --card-border:var(--neon); }
+.game-card.neon:hover { box-shadow:var(--shadow-lg); }
+.game-card.purple { --card-glow-a:rgba(124,111,255,0.08); --card-border:var(--neon2); }
+.game-card.purple:hover { box-shadow:var(--shadow-lg); }
+.game-card.pink { --card-glow-a:rgba(255,107,157,0.08); --card-border:var(--neon3); }
+.game-card.pink:hover { box-shadow:var(--shadow-lg); }
+.game-card.gold { --card-glow-a:rgba(255,217,61,0.08); --card-border:var(--neon4); }
+.game-card.gold:hover { box-shadow:var(--shadow-lg); }
+.game-card.cyan { --card-glow-a:rgba(107,203,255,0.08); --card-border:var(--neon5); }
+.game-card.cyan:hover { box-shadow:var(--shadow-lg); }
+.game-card.wide { grid-column:span 2; }
+
+.game-card-icon { font-size:2.2rem; margin-bottom:16px; }
+.game-card-title { font-family:'Plus Jakarta Sans',sans-serif; font-size:1rem; font-weight:800; color:var(--text); margin-bottom:8px; letter-spacing:-0.2px; }
+.game-card-desc { font-size:0.875rem; color:var(--text2); line-height:1.65; font-weight:600; }
+
+/* Badge showcase */
+.badge-row { display:flex; gap:14px; margin-top:20px; flex-wrap:wrap; }
+.badge {
+  display:flex; flex-direction:column; align-items:center; gap:6px;
+  width:72px;
+}
+.badge-icon {
+  width:56px; height:56px; border-radius:14px;
+  display:flex; align-items:center; justify-content:center;
+  font-size:1.6rem; transition:all 0.3s; position:relative;
+}
+.badge-icon.unlocked { box-shadow:var(--b-glow,0 0 16px rgba(0,245,196,0.4)); border:2px solid var(--b-border,var(--neon)); }
+.badge-icon.locked { filter:grayscale(1) brightness(0.4); border:2px solid var(--border); }
+.badge-icon.unlocked:hover { transform:scale(1.15) rotate(-5deg); }
+.badge-label { font-size:0.62rem; font-weight:800; text-align:center; text-transform:uppercase; letter-spacing:0.5px; color:var(--text2); }
+
+/* Leaderboard mini */
+.lb-entry {
+  display:flex; align-items:center; gap:14px;
+  padding:12px 16px; border-radius:12px;
+  background:var(--surface2); margin-bottom:8px;
+  border:1px solid transparent; transition:all 0.2s;
+}
+.lb-entry:hover { background:rgba(67,97,238,0.04); border-color:rgba(67,97,238,0.2); }
+.lb-rank {
+  font-family:'Orbitron',monospace; font-size:0.85rem;
+  font-weight:900; width:28px; text-align:center;
+}
+.lb-rank.gold { color:var(--neon4); text-shadow:0 0 10px var(--neon4); }
+.lb-rank.silver { color:#c0cfe0; }
+.lb-rank.bronze { color:#e07060; }
+.lb-avatar {
+  width:36px; height:36px; border-radius:10px;
+  display:flex; align-items:center; justify-content:center;
+  font-size:1.1rem; flex-shrink:0;
+}
+.lb-name { font-weight:800; font-size:0.88rem; flex:1; }
+.lb-xp { font-family:'Orbitron',monospace; font-size:0.78rem; color:var(--neon2); font-weight:700; }
+.lb-badge { font-size:0.85rem; }
+
+/* Progress bars in cards */
+.prog-row { margin-top:16px; }
+.prog-label { display:flex; justify-content:space-between; font-size:0.75rem; font-weight:800; color:var(--text2); margin-bottom:6px; }
+.prog-bg { height:8px; background:#e0e7ff; border-radius:4px; overflow:hidden; }
+.prog-fill { height:100%; border-radius:4px; box-shadow:0 0 8px var(--prog-color,var(--neon)); transition:width 1s ease; }
+
+/* Challenge card */
+.challenge-card {
+  background:linear-gradient(135deg,rgba(67,97,238,0.05) 0%,rgba(124,58,237,0.05) 100%);
+  border:1px solid rgba(67,97,238,0.15); border-radius:var(--radius-lg);
+  padding:32px; margin-bottom:20px;
+}
+.challenge-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
+.challenge-tag {
+  display:inline-flex; align-items:center; gap:6px;
+  padding:4px 12px; border-radius:100px;
+  font-size:0.72rem; font-weight:800; text-transform:uppercase; letter-spacing:1px;
+}
+.tag-easy { background:rgba(16,185,129,0.12); color:var(--green); border:1px solid rgba(16,185,129,0.3); }
+.tag-medium { background:rgba(255,217,61,0.15); color:var(--neon4); border:1px solid rgba(255,217,61,0.3); }
+.tag-hard { background:rgba(255,107,157,0.15); color:var(--neon3); border:1px solid rgba(255,107,157,0.3); }
+.challenge-xp { font-family:'Orbitron',monospace; font-size:0.8rem; font-weight:700; color:#d97706; }
+.challenge-title { font-family:'Orbitron',monospace; font-size:1.05rem; font-weight:800; color:var(--text); margin-bottom:8px; }
+.challenge-desc { font-size:0.875rem; color:var(--text2); line-height:1.6; font-weight:600; }
+.challenge-footer { display:flex; align-items:center; gap:12px; margin-top:16px; }
+.challenge-lang { padding:4px 12px; border-radius:8px; font-size:0.78rem; font-weight:800; background:var(--surface2); color:var(--text2); font-family:'JetBrains Mono',monospace; }
+.challenge-solvers { font-size:0.78rem; color:var(--muted); font-weight:700; }
+
+/* =====================================================
+   COMPILER PAGE
+   ===================================================== */
+.compiler-topbar {
+  display:flex; align-items:center; gap:10px;
+  padding:8px 16px;
+  background:white; border-bottom:1px solid var(--border);
+  flex-shrink:0; flex-wrap:wrap;
+  box-shadow:0 2px 8px rgba(67,97,238,0.06);
+}
+
+.lang-tabs { display:flex; gap:4px; flex:1; overflow-x:auto; scrollbar-width:none; }
+
+.lang-tab {
+  display:flex; align-items:center; gap:6px;
+  padding:6px 14px; border-radius:20px;
+  border:1.5px solid var(--border);
+  background:transparent; color:var(--text2);
+  font-family:'JetBrains Mono',monospace; font-size:0.72rem; font-weight:600;
+  cursor:pointer; transition:all 0.18s; white-space:nowrap;
+}
+.lang-tab:hover { border-color:var(--neon); color:var(--neon); }
+.lang-tab.active {
+  background:rgba(67,97,238,0.1); border-color:var(--neon); color:var(--neon);
+  box-shadow:0 2px 10px rgba(67,97,238,0.2);
+}
+
+.compiler-actions { display:flex; gap:8px; flex-shrink:0; }
+
+.action-btn {
+  padding:7px 11px; border-radius:9px;
+  border:1.5px solid var(--border); background:white;
+  color:var(--text2); font-size:0.9rem; cursor:pointer; transition:all 0.18s;
+}
+.action-btn:hover { border-color:var(--neon2); color:var(--neon2); background:rgba(124,58,237,0.05); }
+
+.run-btn {
+  display:flex; align-items:center; gap:8px;
+  padding:8px 24px; border-radius:12px;
+  background:linear-gradient(135deg,var(--neon),var(--neon2));
+  color:white; border:none;
+  font-family:'Plus Jakarta Sans',sans-serif; font-weight:700; font-size:0.875rem;
+  cursor:pointer; transition:all 0.2s; box-shadow:var(--glow-neon);
+}
+.run-btn:hover { transform:translateY(-1px); box-shadow:0 0 30px rgba(0,245,196,0.5); }
+.run-btn.running { background:linear-gradient(135deg,#f59e0b,#ef4444); animation:pulse 0.8s infinite; box-shadow:none; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.8} }
+
+.compiler-workspace {
+  display:grid; grid-template-columns:1fr 1fr;
+  flex:1; overflow:hidden; gap:12px; padding:12px;
+  background:var(--bg);
+}
+
+.editor-card, .output-card {
+  border-radius:var(--radius); overflow:hidden;
+  border:1px solid var(--border);
+  display:flex; flex-direction:column;
+  box-shadow:var(--shadow);
+  transition:border-color 0.3s;
+}
+.editor-card { background:white; }
+.output-card { background:white; }
+.editor-card:focus-within { border-color:rgba(67,97,238,0.4); box-shadow:0 0 0 3px rgba(67,97,238,0.1); }
+
+.card-header {
+  display:flex; align-items:center; gap:10px;
+  padding:10px 16px; background:linear-gradient(90deg,#f8f9ff,#f3f4fb);
+  border-bottom:1px solid var(--border);
+  font-family:'JetBrains Mono',monospace; font-size:0.76rem; color:var(--text2);
+  flex-shrink:0;
+}
+.card-dot { width:8px; height:8px; border-radius:50%; background:linear-gradient(135deg,var(--neon),var(--neon2)); box-shadow:0 0 6px rgba(67,97,238,0.5); animation:blink 2s infinite; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+/* XP toast on run */
+.xp-toast {
+  position:fixed; top:90px; right:28px; z-index:9999;
+  display:flex; align-items:center; gap:10px;
+  padding:12px 20px; border-radius:14px;
+  background:white;
+  border:1px solid var(--neon); box-shadow:var(--glow-neon);
+  font-family:'Plus Jakarta Sans',sans-serif; font-size:0.82rem; font-weight:700;
+  color:var(--neon); background:white;
+  transform:translateY(-20px); opacity:0;
+  transition:all 0.4s cubic-bezier(.4,0,.2,1);
+  pointer-events:none;
+}
+.xp-toast.show { transform:translateY(0); opacity:1; }
+
+/* Combo indicator */
+.combo-indicator {
+  position:fixed; top:50%; left:50%; transform:translate(-50%,-50%) scale(0);
+  z-index:9998; pointer-events:none;
+  font-family:'Plus Jakarta Sans',sans-serif; font-size:1.6rem; font-weight:800;
+  color:#d97706;
+  background:white; padding:14px 28px; border-radius:16px;
+  box-shadow:0 8px 32px rgba(245,158,11,0.25);
+  border:1.5px solid rgba(245,158,11,0.2);
+  transition:all 0.3s cubic-bezier(.34,1.56,.64,1);
+}
+.combo-indicator.show { transform:translate(-50%,-50%) scale(1); }
+
+.editor-body {
+  display:flex; flex:1; overflow:hidden;
+  font-family:'JetBrains Mono',monospace; font-size:0.83rem; line-height:1.65;
+}
+
+.line-nums {
+  padding:14px 0; background:#f0f4ff;
+  border-right:1px solid var(--border);
+  color:var(--muted); font-size:0.74rem; text-align:right;
+  user-select:none; min-width:44px; overflow:hidden; flex-shrink:0;
+}
+.ln { padding:0 10px 0 6px; height:1.65em; line-height:1.65; transition:color 0.1s; }
+.ln.active { color:var(--neon); font-weight:700; }
+
+#code-editor {
+  flex:1; padding:14px 16px;
+  background:transparent; border:none; outline:none; resize:none;
+  color:#1e2a4a;
+  font-family:'JetBrains Mono',monospace; font-size:0.83rem; line-height:1.65;
+  caret-color:var(--neon); tab-size:2;
+  overflow-y:auto; scrollbar-width:thin; scrollbar-color:var(--border) transparent;
+}
+#code-editor::selection { background:rgba(0,245,196,0.15); }
+
+.stdin-row {
+  border-top:1px solid var(--border); padding:8px 14px;
+  background:#f8f9ff; flex-shrink:0;
+}
+.stdin-label { font-size:0.67rem; color:var(--muted); font-family:'JetBrains Mono',monospace;
+  text-transform:uppercase; letter-spacing:0.1em; font-weight:700; margin-bottom:5px; }
+#stdin-area {
+  width:100%; height:50px; background:#f0f4ff;
+  border:1.5px solid var(--border); border-radius:8px;
+  color:var(--text); font-family:'JetBrains Mono',monospace; font-size:0.79rem;
+  padding:7px 10px; outline:none; resize:none;
+}
+#stdin-area:focus { border-color:var(--neon); box-shadow:0 0 0 3px rgba(67,97,238,0.12); }
+
+.output-tabs-bar {
+  display:flex; border-bottom:1px solid var(--border);
+  background:linear-gradient(90deg,#f8f9ff,#f3f4fb); flex-shrink:0;
+}
+.otab {
+  padding:9px 20px; font-size:0.75rem;
+  font-family:'JetBrains Mono',monospace;
+  color:var(--text2); cursor:pointer;
+  border-bottom:2px solid transparent; transition:all 0.18s; font-weight:600;
+}
+.otab.active { color:var(--neon); border-bottom-color:var(--neon); background:rgba(67,97,238,0.04); }
+.otab:hover:not(.active) { color:var(--text); }
+
+#output-display {
+  flex:1; padding:18px 20px;
+  font-family:'JetBrains Mono',monospace; font-size:0.82rem; line-height:1.75;
+  overflow-y:auto; background:#fafbff;
+  white-space:pre-wrap; word-break:break-word; color:#2d3a6b;
+  scrollbar-width:thin; scrollbar-color:var(--border) transparent;
+}
+.out-placeholder { display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; gap:12px; color:var(--muted); }
+.out-placeholder .big-icon { font-size:2.8rem; animation:float 3s ease-in-out infinite; }
+@keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
+
+.oline { display:block; }
+.oline.ok { color:var(--green); font-weight:700; }
+.oline.err { color:var(--neon3); }
+.oline.info { color:var(--neon2); }
+.oline.dim { color:var(--muted); font-style:italic; }
+.oline.gold { color:#d97706; font-weight:800; }
+
+.compiler-statusbar {
+  display:flex; align-items:center; gap:16px;
+  padding:5px 20px; background:white; border-top:1px solid var(--border);
+  font-family:'JetBrains Mono',monospace; font-size:0.68rem; color:var(--muted);
+  flex-shrink:0;
+}
+.sitem { display:flex; align-items:center; gap:5px; }
+.sdot { width:6px; height:6px; border-radius:50%; background:var(--green); box-shadow:0 0 6px var(--green); }
+.sdot.idle { background:var(--muted); box-shadow:none; }
+.sdot.run { background:var(--neon4); animation:pulse 0.8s infinite; }
+.sdot.err { background:var(--neon3); }
+
+/* =====================================================
+   CHALLENGES PAGE
+   ===================================================== */
+.challenges-header {
+  padding:120px 40px 60px; text-align:center; max-width:800px; margin:0 auto;
+}
+
+.challenges-filters {
+  display:flex; gap:8px; justify-content:center; flex-wrap:wrap;
+  padding:0 40px 40px; max-width:1200px; margin:0 auto;
+}
+
+.filter-btn {
+  padding:8px 20px; border-radius:20px;
+  border:1.5px solid var(--border); background:transparent;
+  color:var(--text2); font-family:'Plus Jakarta Sans',sans-serif; font-weight:600;
+  font-size:0.85rem; cursor:pointer; transition:all 0.18s;
+}
+.filter-btn:hover, .filter-btn.active { border-color:var(--neon); color:var(--neon); background:rgba(67,97,238,0.07); }
+
+.challenges-grid {
+  display:grid; grid-template-columns:repeat(2,1fr); gap:16px;
+  max-width:1100px; margin:0 auto; padding:0 40px 80px;
+}
+
+.ch-card {
+  background:white; border:1px solid var(--border);
+  border-radius:var(--radius-lg); padding:24px; cursor:pointer;
+  transition:all 0.25s; position:relative; overflow:hidden;
+  box-shadow:0 2px 10px rgba(67,97,238,0.07);
+}
+.ch-card::after {
+  content:''; position:absolute; top:0; left:0; right:0; height:3px;
+  background:var(--ch-color,var(--neon)); opacity:0; transition:opacity 0.25s;
+  box-shadow:0 0 12px var(--ch-color,var(--neon));
+}
+.ch-card:hover { transform:translateY(-4px); border-color:var(--ch-color,var(--neon)); }
+.ch-card:hover::after { opacity:1; }
+.ch-card.easy { --ch-color:var(--neon); }
+.ch-card.medium { --ch-color:var(--neon4); }
+.ch-card.hard { --ch-color:var(--neon3); }
+
+.ch-header { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:12px; }
+.ch-title { font-family:'Plus Jakarta Sans',sans-serif; font-size:0.95rem; font-weight:700; color:var(--text); }
+.ch-xp-badge { font-family:'Orbitron',monospace; font-size:0.72rem; font-weight:700; color:#d97706; padding:3px 10px; border-radius:100px; background:rgba(245,158,11,0.1); border:1px solid rgba(245,158,11,0.3); white-space:nowrap; flex-shrink:0; }
+.ch-desc { font-size:0.85rem; color:var(--text2); line-height:1.6; font-weight:600; margin-bottom:16px; }
+.ch-footer { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.ch-lang { padding:3px 10px; border-radius:7px; font-family:'JetBrains Mono',monospace; font-size:0.73rem; font-weight:600; background:#eef2ff; color:var(--neon); }
+.ch-solved { font-size:0.75rem; color:var(--muted); font-weight:700; margin-left:auto; }
+.ch-lock { position:absolute; inset:0; background:rgba(13,15,26,0.7); display:flex; align-items:center; justify-content:center; font-size:2rem; border-radius:var(--radius-lg); backdrop-filter:blur(2px); }
+
+/* =====================================================
+   LEADERBOARD PAGE
+   ===================================================== */
+.lb-page-header {
+  padding:120px 40px 60px; text-align:center; max-width:800px; margin:0 auto;
+}
+
+.lb-table {
+  max-width:900px; margin:0 auto; padding:0 40px 80px;
+}
+
+.lb-row {
+  display:grid; grid-template-columns:60px 1fr auto auto auto;
+  align-items:center; gap:16px;
+  padding:16px 20px; border-radius:14px;
+  background:white; border:1px solid var(--border);
+  box-shadow:0 2px 8px rgba(67,97,238,0.06);
+  margin-bottom:10px; transition:all 0.2s; cursor:pointer;
+}
+.lb-row:hover { border-color:var(--neon); box-shadow:var(--shadow-lg); transform:translateX(4px); }
+.lb-row.me { border-color:var(--neon2); box-shadow:0 0 0 3px rgba(124,58,237,0.1); background:rgba(124,58,237,0.05); }
+.lb-row.top { border-color:rgba(245,158,11,0.3); background:rgba(245,158,11,0.04); }
+
+.lb-pos { font-family:'Orbitron',monospace; font-size:1rem; font-weight:900; text-align:center; }
+.pos-1 { color:var(--neon4); text-shadow:0 0 12px var(--neon4); font-size:1.3rem; }
+.pos-2 { color:#c0cfe0; }
+.pos-3 { color:#e07060; }
+
+.lb-user { display:flex; align-items:center; gap:14px; }
+.lb-user-avatar { width:44px; height:44px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:1.3rem; flex-shrink:0; }
+.lb-user-name { font-weight:700; font-size:0.92rem; color:var(--text); font-family:'Plus Jakarta Sans',sans-serif; }
+.lb-user-title { font-size:0.76rem; color:var(--muted); font-weight:500; margin-top:2px; }
+
+.lb-xp-col { font-family:'Orbitron',monospace; font-size:0.85rem; font-weight:700; color:var(--neon); text-align:right; }
+.lb-streak { font-size:0.82rem; font-weight:700; color:var(--neon3); white-space:nowrap; }
+.lb-badges-col { display:flex; gap:4px; font-size:1rem; }
+
+/* =====================================================
+   AUTH PAGE
+   ===================================================== */
+.auth-page {
+  min-height:100vh; display:flex; align-items:center; justify-content:center;
+  padding:100px 24px 60px; position:relative;
+}
+
+.auth-glow {
+  position:absolute; width:600px; height:600px; border-radius:50%;
+  background:radial-gradient(circle,rgba(67,97,238,0.06) 0%,transparent 70%);
+  pointer-events:none;
+}
+
+.auth-box {
+  background:white; border:1px solid var(--border);
+  border-radius:var(--radius-xl); padding:48px;
+  width:100%; max-width:460px; position:relative; z-index:1;
+  box-shadow:var(--shadow-lg);
+}
+
+.auth-logo { font-family:'Plus Jakarta Sans',sans-serif; font-size:1.5rem; font-weight:800; letter-spacing:-0.5px; background:linear-gradient(135deg,var(--neon),var(--neon2)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; margin-bottom:28px; display:block; text-align:center; }
+
+.auth-title { font-family:'Plus Jakarta Sans',sans-serif; font-size:1.4rem; font-weight:800; color:var(--text); margin-bottom:8px; text-align:center; letter-spacing:-0.3px; }
+.auth-sub { font-size:0.88rem; color:var(--text2); text-align:center; margin-bottom:32px; font-weight:600; }
+
+.auth-tabs { display:flex; gap:0; background:#eef2ff; border-radius:12px; padding:4px; margin-bottom:28px; }
+.auth-tab { flex:1; padding:9px; text-align:center; font-size:0.85rem; font-weight:800; color:var(--text2); cursor:pointer; border-radius:9px; transition:all 0.2s; background:transparent; border:none; }
+.auth-tab.active { background:linear-gradient(135deg,var(--neon2),var(--neon3)); color:white; box-shadow:var(--glow-purple); }
+
+.form-group { margin-bottom:16px; }
+.form-label { display:block; font-size:0.8rem; font-weight:800; color:var(--text2); margin-bottom:7px; text-transform:uppercase; letter-spacing:0.5px; }
+.form-input {
+  width:100%; padding:12px 14px; border-radius:10px;
+  border:1.5px solid var(--border); background:#f5f7ff;
+  color:var(--text); font-family:'Nunito',sans-serif; font-size:0.9rem; outline:none;
+  transition:all 0.18s;
+}
+.form-input:focus { border-color:var(--neon); box-shadow:0 0 0 3px rgba(67,97,238,0.12); }
+.form-input::placeholder { color:var(--muted); }
+.form-input { color: var(--text); }
+
+.btn-auth {
+  width:100%; padding:13px; border-radius:12px;
+  background:linear-gradient(135deg,var(--neon),var(--neon2));
+  color:#0d0f1a; border:none;
+  font-family:'Plus Jakarta Sans',sans-serif; font-weight:700; font-size:0.9rem;
+  cursor:pointer; transition:all 0.2s; box-shadow:var(--glow-neon);
+  margin-top:8px;
+}
+.btn-auth:hover { transform:translateY(-2px); box-shadow:0 0 30px rgba(0,245,196,0.5); }
+
+.auth-divider { display:flex; align-items:center; gap:12px; margin:20px 0; font-size:0.78rem; color:var(--muted); font-weight:700; }
+.auth-divider::before, .auth-divider::after { content:''; flex:1; height:1px; background:var(--border2); }
+
+.oauth-row { display:flex; gap:10px; }
+.oauth-btn { flex:1; padding:11px; border:1.5px solid var(--border); border-radius:10px; background:white; color:var(--text2); font-size:0.85rem; font-weight:700; cursor:pointer; transition:all 0.18s; display:flex; align-items:center; justify-content:center; gap:8px; }
+.oauth-btn:hover { border-color:var(--neon); color:var(--neon); background:rgba(67,97,238,0.05); }
+
+/* =====================================================
+   FLOATING PARTICLES (on run)
+   ===================================================== */
+.particle {
+  position:fixed; pointer-events:none; z-index:9999;
+  font-size:1.2rem; font-weight:900;
+  animation:particleUp 1.2s ease forwards;
+}
+@keyframes particleUp {
+  0% { opacity:1; transform:translateY(0) scale(1); }
+  100% { opacity:0; transform:translateY(-120px) scale(0.5) rotate(20deg); }
+}
+
+/* =====================================================
+   STREAK BANNER
+   ===================================================== */
+.streak-banner {
+  background:linear-gradient(135deg,rgba(247,37,133,0.07),rgba(245,158,11,0.07));
+  border:1px solid rgba(247,37,133,0.2); border-radius:14px;
+  padding:16px 24px; display:flex; align-items:center; gap:16px;
+  margin-bottom:20px;
+}
+.streak-fire { font-size:2rem; animation:fireShake 0.5s ease-in-out infinite alternate; }
+@keyframes fireShake { from{transform:rotate(-5deg)} to{transform:rotate(5deg)} }
+.streak-text { flex:1; }
+.streak-num { font-family:'Plus Jakarta Sans',sans-serif; font-size:1.2rem; font-weight:800; color:var(--neon3); }
+.streak-label { font-size:0.8rem; color:var(--text2); font-weight:700; }
+
+/* =====================================================
+   FOOTER
+   ===================================================== */
+footer {
+  background:white; border-top:1px solid var(--border);
+  box-shadow:0 -2px 20px rgba(67,97,238,0.05);
+  padding:48px 40px 28px;
+}
+.footer-inner { max-width:1200px; margin:0 auto; }
+.footer-top { display:grid; grid-template-columns:2fr 1fr 1fr 1fr; gap:40px; margin-bottom:40px; }
+.footer-logo { font-family:'Plus Jakarta Sans',sans-serif; font-size:1.2rem; font-weight:800; letter-spacing:-0.3px; background:linear-gradient(135deg,var(--neon),var(--neon2)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; margin-bottom:12px; display:block; }
+.footer-desc { font-size:0.875rem; color:var(--text2); line-height:1.7; font-weight:600; margin-bottom:18px; }
+.footer-socials { display:flex; gap:10px; }
+.soc-btn { width:36px; height:36px; border-radius:9px; border:1px solid var(--border); background:transparent; color:var(--text2); cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:0.9rem; transition:all 0.2s; }
+.soc-btn:hover { border-color:var(--neon); color:var(--neon); box-shadow:0 0 10px rgba(0,245,196,0.2); }
+.footer-col h4 { font-size:0.72rem; font-weight:700; text-transform:uppercase; letter-spacing:1.5px; color:var(--muted); margin-bottom:16px; font-family:'Plus Jakarta Sans',sans-serif; }
+.footer-col ul { list-style:none; display:flex; flex-direction:column; gap:10px; }
+.footer-col li a { font-size:0.875rem; color:var(--text2); text-decoration:none; font-weight:600; cursor:pointer; transition:color 0.18s; }
+.footer-col li a:hover { color:var(--neon); }
+.footer-bottom { border-top:1px solid var(--border); padding-top:24px; display:flex; justify-content:space-between; font-size:0.8rem; color:var(--muted); font-weight:600; }
+
+/* =====================================================
+   RESPONSIVE
+   ===================================================== */
+@media(max-width:900px) {
+  .game-grid { grid-template-columns:1fr 1fr; }
+  .game-card.wide { grid-column:span 1; }
+  .challenges-grid, .footer-top { grid-template-columns:1fr; }
+  .lb-row { grid-template-columns:40px 1fr auto; }
+  .lb-streak, .lb-badges-col { display:none; }
+  .compiler-workspace { grid-template-columns:1fr; grid-template-rows:1fr 1fr; }
+  nav { padding:0 16px; }
+  .nav-links { display:none; }
+}
+@media(max-width:600px) {
+  .game-grid { grid-template-columns:1fr; }
+  .game-card.wide { grid-column:span 1; }
+  .hero-stats { flex-direction:column; align-items:center; }
+  .auth-box { padding:32px 24px; }
+  footer { padding:36px 20px 24px; }
+}
+
+::-webkit-scrollbar { width:4px; height:4px; }
+::-webkit-scrollbar-track { background:transparent; }
+::-webkit-scrollbar-thumb { background:var(--border2); border-radius:2px; }
+</style>
+</head>
+<body>
+
+<!-- Starfield -->
+<div id="stars"></div>
+
+<!-- XP Toast -->
+<div class="xp-toast" id="xpToast">+50 XP earned</div>
+<div class="combo-indicator" id="comboIndicator">Combo × 3</div>
+
+<!-- =====================================================
+     NAVBAR
+     ===================================================== -->
+<nav class="navbar">
+  <div class="nav-logo" onclick="showPage('home')">Compile<span style="color:var(--neon3)">X</span></div>
+  <ul class="nav-links">
+    <li><a onclick="showPage('home')" id="nav-home" class="active">Home</a></li>
+    <li><a onclick="showPage('compiler')" id="nav-compiler">Compiler</a></li>
+    <li><a onclick="showPage('challenges')" id="nav-challenges">Challenges</a></li>
+    <li><a onclick="showPage('leaderboard')" id="nav-leaderboard">Leaderboard</a></li>
+    <li><a onclick="showPage('auth')" id="nav-auth">Profile</a></li>
+  </ul>
+  <div class="nav-hud">
+    <div class="hud-xp">
+      <div class="hud-xp-label"><span>LVL <span id="hud-level-num">5</span></span><span id="hud-xp-text">320 / 500 XP</span></div>
+      <div class="xp-bar-bg"><div class="xp-bar-fill" id="xpBarFill" style="width:64%"></div></div>
+    </div>
+    <div class="hud-level" id="hudLevelBadge">05</div>
+    <div class="hud-coins" id="hudCoins">🪙 <span id="coinCount">1240</span></div>
+    <button class="btn-nav-login" onclick="showPage('auth')">Get Started</button>
+  </div>
+</nav>
+
+<!-- =====================================================
+     PAGE: HOME
+     ===================================================== -->
+<div id="page-home" class="page active">
+  <section class="hero" style="background:linear-gradient(180deg,#eef1ff 0%,#f5f0ff 50%,#fff0f7 100%);">
+    <div class="hero-content">
+      <div class="hero-badge"><div class="pulse-dot"></div>Trusted by 50,000+ developers worldwide</div>
+      <h1>
+        <span class="h1-line1">Write, Run &amp;</span>
+        <span class="h1-line2">Master Any Language</span>
+      </h1>
+      <p class="hero-sub">The fastest online code compiler with built-in challenges, XP rewards, and a global leaderboard. No setup needed — just open and start coding.</p>
+      <div class="hero-ctas">
+        <button class="btn-hero-main" onclick="showPage('compiler')">Start Coding — It's Free</button>
+        <button class="btn-hero-sec" onclick="showPage('challenges')">Browse Challenges</button>
+      </div>
+      <div class="hero-stats">
+        <div class="stat-card"><div class="stat-icon">⚡</div><div class="stat-info"><div class="stat-num">50K+</div><div class="stat-label">Active Coders</div></div></div>
+        <div class="stat-card"><div class="stat-icon">🎯</div><div class="stat-info"><div class="stat-num">200+</div><div class="stat-label">Challenges</div></div></div>
+        <div class="stat-card"><div class="stat-icon">🏆</div><div class="stat-info"><div class="stat-num">15+</div><div class="stat-label">Languages</div></div></div>
+        <div class="stat-card"><div class="stat-icon">🔥</div><div class="stat-info"><div class="stat-num">1M+</div><div class="stat-label">Executions / Day</div></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- GAME FEATURES -->
+  <div class="game-section">
+    <div class="section-label">Why CompileX</div>
+    <h2 class="section-title">Learn by doing,<br>earn as you grow</h2>
+    <p class="section-sub">Every challenge you solve, every streak you maintain, and every language you try moves you forward — visibly.</p>
+
+    <div class="game-grid">
+
+      <!-- XP & Levels card -->
+      <div class="game-card neon" style="grid-column:span 2;">
+        <div class="game-card-icon">⚡</div>
+        <div class="game-card-title">XP &amp; Levels</div>
+        <div class="game-card-desc">Earn XP each time you run code, complete a challenge, or keep your daily streak alive. Progress is always visible — watch your level grow in real time.</div>
+        <div style="margin-top:20px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;">
+          <div class="prog-row"><div class="prog-label"><span>🐍 Python</span><span style="color:var(--neon)">84%</span></div><div class="prog-bg"><div class="prog-fill" style="width:84%;background:linear-gradient(90deg,#4361ee,#7c3aed);"></div></div></div>
+          <div class="prog-row"><div class="prog-label"><span>🟨 JavaScript</span><span style="color:var(--neon4)">61%</span></div><div class="prog-bg"><div class="prog-fill" style="width:61%;background:linear-gradient(90deg,#f59e0b,#f72585);"></div></div></div>
+          <div class="prog-row"><div class="prog-label"><span>⚙️ C++</span><span style="color:var(--neon5)">42%</span></div><div class="prog-bg"><div class="prog-fill" style="width:42%;background:linear-gradient(90deg,#06b6d4,#7c3aed);"></div></div></div>
+        </div>
+      </div>
+
+      <!-- Badges -->
+      <div class="game-card purple">
+        <div class="game-card-icon">🏅</div>
+        <div class="game-card-title">Achievement Badges</div>
+        <div class="game-card-desc">Earn 50+ badges as you hit milestones — from your first run to week-long streaks and language mastery.</div>
+        <div class="badge-row">
+          <div class="badge"><div class="badge-icon unlocked" style="background:rgba(0,245,196,0.1);--b-glow:0 0 16px rgba(0,245,196,0.5);--b-border:var(--neon);">🚀</div><div class="badge-label">Launch</div></div>
+          <div class="badge"><div class="badge-icon unlocked" style="background:rgba(255,217,61,0.1);--b-glow:0 0 16px rgba(255,217,61,0.5);--b-border:var(--neon4);">🔥</div><div class="badge-label">7-Day</div></div>
+          <div class="badge"><div class="badge-icon unlocked" style="background:rgba(107,203,255,0.1);--b-glow:0 0 16px rgba(107,203,255,0.5);--b-border:var(--neon5);">⚡</div><div class="badge-label">Fast</div></div>
+          <div class="badge"><div class="badge-icon locked">🏆</div><div class="badge-label">Master</div></div>
+          <div class="badge"><div class="badge-icon locked">💎</div><div class="badge-label">Diamond</div></div>
+        </div>
+      </div>
+
+      <!-- Streak -->
+      <div class="game-card pink">
+        <div class="game-card-icon">🔥</div>
+        <div class="game-card-title">Daily Streak</div>
+        <div class="game-card-desc">Code daily to build your streak. An active streak doubles your XP — skip a day and it resets.</div>
+        <div class="streak-banner" style="margin-top:16px;margin-bottom:0;">
+          <div class="streak-fire">🔥</div>
+          <div class="streak-text"><div class="streak-num">7-Day Streak</div><div class="streak-label">2× XP multiplier is active</div></div>
+        </div>
+      </div>
+
+      <!-- Leaderboard preview -->
+      <div class="game-card gold wide" onclick="showPage('leaderboard')">
+        <div class="game-card-icon">🏆</div>
+        <div class="game-card-title">Global Leaderboard</div>
+        <div class="game-card-desc" style="margin-bottom:16px;">See where you rank among 50,000+ developers. Updated in real time.</div>
+        <div class="lb-entry"><div class="lb-rank gold">🥇</div><div class="lb-avatar" style="background:rgba(255,217,61,0.1);">🦅</div><div class="lb-name">CodeNinja_X</div><div class="lb-xp">12,480 XP</div><div class="lb-badge">🔥🏆💎</div></div>
+        <div class="lb-entry"><div class="lb-rank silver">2</div><div class="lb-avatar" style="background:rgba(107,203,255,0.1);">🐉</div><div class="lb-name">ByteWizard</div><div class="lb-xp">11,200 XP</div><div class="lb-badge">⚡🎯</div></div>
+        <div class="lb-entry"><div class="lb-rank bronze">3</div><div class="lb-avatar" style="background:rgba(255,107,157,0.1);">🦊</div><div class="lb-name">AlgoQueen</div><div class="lb-xp">9,850 XP</div><div class="lb-badge">🏅🔥</div></div>
+      </div>
+
+      <!-- Today's challenge -->
+      <div class="game-card neon">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+          <div class="game-card-icon" style="margin-bottom:0;">🎯</div>
+          <span class="challenge-tag tag-easy">Easy · Today</span>
+        </div>
+        <div class="game-card-title">Daily Challenge</div>
+        <div class="challenge-card" style="margin-top:12px;margin-bottom:0;padding:16px;">
+          <div class="ch-title" style="font-family:'Orbitron',monospace;font-size:0.9rem;font-weight:800;color:var(--text);margin-bottom:8px;">Reverse a String</div>
+          <div style="font-size:0.82rem;color:var(--text2);line-height:1.6;font-weight:600;margin-bottom:12px;">Write a function that takes a string and returns it reversed without using built-in reverse methods.</div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <span class="ch-lang">Python</span>
+            <span class="ch-lang">JavaScript</span>
+            <span class="challenge-xp" style="margin-left:auto;">+150 XP</span>
+          </div>
+        </div>
+        <button class="run-btn" style="margin-top:14px;width:100%;justify-content:center;" onclick="showPage('compiler')">Open in Compiler</button>
+      </div>
+
+      <!-- Mini game teaser -->
+      <div class="game-card cyan">
+        <div class="game-card-icon">💡</div>
+        <div class="game-card-title">Quick Quiz</div>
+        <div class="game-card-desc">Ten multiple-choice questions in 60 seconds. A quick way to test your fundamentals and earn bonus XP.</div>
+        <button onclick="showPage('compiler')" style="margin-top:16px;padding:10px 20px;border-radius:10px;background:rgba(107,203,255,0.1);border:1.5px solid var(--neon5);color:var(--neon5);font-family:'Orbitron',monospace;font-size:0.75rem;font-weight:800;cursor:pointer;letter-spacing:1px;transition:all 0.2s;width:100%;">
+          ▶ START QUIZ
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <footer>
+    <div class="footer-inner">
+      <div class="footer-top">
+        <div><span class="footer-logo">COMPILEX</span><p class="footer-desc">CompileX is an online compiler with built-in challenges, XP rewards, and a global leaderboard. Write and run code in 15+ languages — no setup required.</p><div class="footer-socials"><div class="soc-btn">𝕏</div><div class="soc-btn">in</div><div class="soc-btn">gh</div><div class="soc-btn">yt</div></div></div>
+        <div class="footer-col"><h4>Platform</h4><ul><li><a onclick="showPage('compiler')">Compiler</a></li><li><a onclick="showPage('challenges')">Challenges</a></li><li><a onclick="showPage('leaderboard')">Leaderboard</a></li><li><a>API Docs</a></li></ul></div>
+        <div class="footer-col"><h4>Company</h4><ul><li><a>About Us</a></li><li><a>Blog</a></li><li><a>Careers</a></li><li><a>Contact</a></li></ul></div>
+        <div class="footer-col"><h4>Legal</h4><ul><li><a>Privacy</a></li><li><a>Terms</a></li><li><a>Security</a></li></ul></div>
+      </div>
+      <div class="footer-bottom"><span>© 2025 CompileX. All rights reserved.</span><span>Made with ❤️ + ⚡ for coders worldwide</span></div>
+    </div>
+  </footer>
+</div>
+
+<!-- =====================================================
+     PAGE: COMPILER
+     ===================================================== -->
+<div id="page-compiler" class="page">
+  <div class="compiler-topbar">
+    <div class="lang-tabs" id="langTabsBar"></div>
+    <div class="compiler-actions">
+      <button class="action-btn" onclick="clearCode()" title="Clear">🗑</button>
+      <button class="action-btn" onclick="copyCode()" title="Copy" id="copyBtn">📋</button>
+      <button class="action-btn" onclick="downloadCode()" title="Download">⬇️</button>
+      <button class="run-btn" id="runBtn" onclick="runCode()">▶  Run Code</button>
+    </div>
+  </div>
+
+  <div class="compiler-workspace">
+    <div class="editor-card">
+      <div class="card-header">
+        <div class="card-dot"></div>
+        <span id="fileLabel">main.py</span>
+        <span style="margin-left:auto;" id="cursorInfo">Ln 1, Col 1</span>
+      </div>
+      <div class="editor-body">
+        <div class="line-nums" id="lineNums"></div>
+        <textarea id="code-editor" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off"></textarea>
+      </div>
+      <div class="stdin-row">
+        <div class="stdin-label">⌨ stdin · input</div>
+        <textarea id="stdin-area" placeholder="Provide program input here..."></textarea>
+      </div>
+    </div>
+
+    <div class="output-card">
+      <div class="output-tabs-bar">
+        <div class="otab active" id="otab-output" onclick="switchOutTab('output')">Output</div>
+        <div class="otab" id="otab-info" onclick="switchOutTab('info')">Info</div>
+        <div class="otab" id="otab-stats" onclick="switchOutTab('stats')">📊 My Stats</div>
+      </div>
+      <div id="output-display">
+        <div class="out-placeholder" id="outPlaceholder">
+          <div class="big-icon">⚡</div>
+          <p style="font-weight:700;color:var(--text2);">Click <span style="color:var(--neon)">Run Code</span> to execute</p>
+          <p style="font-size:0.76rem;color:var(--muted);margin-top:6px;" id="apiModeLabel">Powered by Piston API · runs your actual code</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="compiler-statusbar">
+    <div class="sitem"><div class="sdot idle" id="sdot"></div><span id="stext">Ready</span></div>
+    <div class="sitem">🌐 Online</div>
+    <div class="sitem" style="color:var(--neon4);">Daily Streak: <strong id="streakCount">7 days</strong></div>
+    <div class="sitem" id="apiModePill" style="margin-left:auto;padding:2px 10px;border-radius:100px;font-size:0.68rem;font-weight:700;background:#eef2ff;color:var(--neon);border:1px solid var(--border2);">Piston API · Live</div>
+    <div class="sitem" id="execMeta"></div>
+  </div>
+</div>
+
+<!-- =====================================================
+     PAGE: CHALLENGES
+     ===================================================== -->
+<div id="page-challenges" class="page">
+  <div class="challenges-header">
+    <div class="section-label">Challenges</div>
+    <h1 class="section-title">Practice problems.<br><span style="background:linear-gradient(135deg,var(--neon),var(--neon2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">Built to challenge every level.</span></h1>
+    <p style="color:var(--text2);font-size:1rem;font-weight:600;line-height:1.7;max-width:500px;margin:0 auto;">Each challenge is designed to sharpen a real skill. Solve it, earn XP, and move on to harder ones.</p>
+  </div>
+
+  <div class="challenges-filters">
+    <button class="filter-btn active" onclick="filterChallenges('all',this)">All</button>
+    <button class="filter-btn" onclick="filterChallenges('easy',this)">🟢 Easy</button>
+    <button class="filter-btn" onclick="filterChallenges('medium',this)">🟡 Medium</button>
+    <button class="filter-btn" onclick="filterChallenges('hard',this)">🔴 Hard</button>
+    <button class="filter-btn" onclick="filterChallenges('python',this)">🐍 Python</button>
+    <button class="filter-btn" onclick="filterChallenges('js',this)">🟨 JavaScript</button>
+  </div>
+
+  <div class="challenges-grid" id="challengesGrid"></div>
+</div>
+
+<!-- =====================================================
+     PAGE: LEADERBOARD
+     ===================================================== -->
+<div id="page-leaderboard" class="page">
+  <div class="lb-page-header">
+    <div class="section-label">Leaderboard</div>
+    <h1 class="section-title" style="font-size:2.6rem;">Global Rankings</h1>
+    <p style="color:var(--text2);font-size:1rem;font-weight:600;line-height:1.7;max-width:480px;margin:0 auto;">Ranked by total XP earned. Your position updates as you solve challenges and maintain streaks.</p>
+  </div>
+  <div class="lb-table" id="lbTable"></div>
+</div>
+
+<!-- =====================================================
+     PAGE: AUTH
+     ===================================================== -->
+<div id="page-auth" class="page">
+  <div class="auth-page">
+    <div class="auth-glow"></div>
+    <div class="auth-box">
+      <span class="auth-logo">COMPILEX</span>
+      <div class="auth-title">Welcome to CompileX</div>
+      <div class="auth-sub">Create a free account to save progress and join the leaderboard</div>
+
+      <div class="auth-tabs">
+        <div class="auth-tab active" id="atab-login" onclick="switchAuthTab('login')">Log In</div>
+        <div class="auth-tab" id="atab-signup" onclick="switchAuthTab('signup')">Sign Up</div>
+      </div>
+
+      <div id="form-login">
+        <div class="form-group"><label class="form-label">Email</label><input class="form-input" type="email" placeholder="you@example.com"></div>
+        <div class="form-group"><label class="form-label">Password</label><input class="form-input" type="password" placeholder="Your password"></div>
+        <button class="btn-auth" onclick="showPage('compiler')">Log In</button>
+        <div class="auth-divider">or continue with</div>
+        <div class="oauth-row">
+          <button class="oauth-btn" onclick="showPage('compiler')">🔵 Google</button>
+          <button class="oauth-btn" onclick="showPage('compiler')">⚫ GitHub</button>
+        </div>
+      </div>
+
+      <div id="form-signup" style="display:none;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div class="form-group"><label class="form-label">First Name</label><input class="form-input" type="text" placeholder="Aarav"></div>
+          <div class="form-group"><label class="form-label">Last Name</label><input class="form-input" type="text" placeholder="Patel"></div>
+        </div>
+        <div class="form-group"><label class="form-label">Username</label><input class="form-input" type="text" placeholder="CodeNinja_X"></div>
+        <div class="form-group"><label class="form-label">Email</label><input class="form-input" type="email" placeholder="you@example.com"></div>
+        <div class="form-group"><label class="form-label">Password</label><input class="form-input" type="password" placeholder="Min. 8 characters"></div>
+        <button class="btn-auth" onclick="showPage('compiler')">Create Free Account</button>
+        <div class="auth-divider">or sign up with</div>
+        <div class="oauth-row">
+          <button class="oauth-btn" onclick="showPage('compiler')">🔵 Google</button>
+          <button class="oauth-btn" onclick="showPage('compiler')">⚫ GitHub</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- =====================================================
+     JAVASCRIPT
+     ===================================================== -->
+<script>
+// =====================================================
+// STARS
+// =====================================================
+(function() {
+  const container = document.getElementById('stars');
+  for (let i = 0; i < 120; i++) {
+    const s = document.createElement('div');
+    s.className = 'star';
+    const size = Math.random() * 10 + 6;
+    const colors = ['#c7d2fe','#ddd6fe','#fbcfe8','#bfdbfe','#a7f3d0','#fde68a'];
+    const color = colors[Math.floor(Math.random()*colors.length)];
+    s.style.cssText = `
+      left:${Math.random()*100}%; top:${Math.random()*100}%;
+      width:${size}px; height:${size}px;
+      background:${color};
+      --d:${(Math.random()*4+4).toFixed(1)}s;
+      --o:${(Math.random()*0.3+0.1).toFixed(2)};
+      animation-delay:${(Math.random()*6).toFixed(1)}s;
+    `;
+    container.appendChild(s);
+  }
+})();
+
+// =====================================================
+// GAMIFICATION STATE
+// =====================================================
+let xp = 320, maxXp = 500, level = 5, coins = 1240, streak = 7, runCount = 0, combo = 0, comboTimer = null;
+
+function addXP(amount) {
+  xp += amount;
+  coins += Math.floor(amount * 0.5);
+  if (xp >= maxXp) {
+    xp -= maxXp;
+    level++;
+    maxXp = Math.floor(maxXp * 1.4);
+    showLevelUp();
+  }
+  updateHUD();
+  showXpToast(amount);
+  spawnParticles(amount);
+}
+
+function updateHUD() {
+  const pct = Math.min((xp/maxXp)*100, 100);
+  document.getElementById('xpBarFill').style.width = pct + '%';
+  document.getElementById('hud-xp-text').textContent = `${xp} / ${maxXp} XP`;
+  document.getElementById('hud-level-num').textContent = level;
+  document.getElementById('hudLevelBadge').textContent = String(level).padStart(2,'0');
+  document.getElementById('coinCount').textContent = coins.toLocaleString();
+}
+
+function showXpToast(amount) {
+  const t = document.getElementById('xpToast');
+  t.textContent = `+${amount} XP earned`;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+function showLevelUp() {
+  const t = document.getElementById('xpToast');
+  t.textContent = `Level Up! You're now Level ${level}`;
+  t.style.background = 'linear-gradient(135deg,rgba(255,217,61,0.2),rgba(255,107,157,0.2))';
+  t.style.borderColor = 'var(--neon4)';
+  t.style.color = 'var(--neon4)';
+  t.classList.add('show');
+  setTimeout(() => {
+    t.classList.remove('show');
+    t.style.cssText = '';
+  }, 3000);
+}
+
+function spawnParticles(amount) {
+  const emojis = ['⚡','✨','🔥','💥','🎯','💎','⭐','🚀'];
+  for (let i = 0; i < 6; i++) {
+    const p = document.createElement('div');
+    p.className = 'particle';
+    p.textContent = emojis[Math.floor(Math.random()*emojis.length)];
+    p.style.left = (30 + Math.random()*40) + 'vw';
+    p.style.top = (40 + Math.random()*20) + 'vh';
+    p.style.animationDelay = (Math.random()*0.3).toFixed(2) + 's';
+    document.body.appendChild(p);
+    setTimeout(() => p.remove(), 1500);
+  }
+}
+
+function showCombo(count) {
+  const c = document.getElementById('comboIndicator');
+  c.textContent = `Combo × ${count}`;
+  c.classList.add('show');
+  setTimeout(() => c.classList.remove('show'), 1500);
+}
+
+// =====================================================
+// PAGE ROUTING
+// =====================================================
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-links a').forEach(a => a.classList.remove('active'));
+  document.getElementById('page-' + id).classList.add('active');
+  const navEl = document.getElementById('nav-' + id);
+  if (navEl) navEl.classList.add('active');
+  window.scrollTo(0,0);
+  if (id === 'compiler') initCompiler();
+  if (id === 'challenges') renderChallenges();
+  if (id === 'leaderboard') renderLeaderboard();
+}
+
+// =====================================================
+// LANGUAGES
+// =====================================================
+const LANGS = [
+  { id:71, name:'Python', ext:'py', icon:'🐍',
+    code:`# Python 3\ndef fibonacci(n):\n    if n <= 1: return n\n    return fibonacci(n-1) + fibonacci(n-2)\n\n# Print first 10 fibonacci numbers\nfor i in range(10):\n    print(f"fib({i}) = {fibonacci(i)}")\n\nprint("\\n🚀 Hello from CompileX!")` },
+  { id:63, name:'JavaScript', ext:'js', icon:'🟨',
+    code:`// JavaScript\nconst fibonacci = n => n <= 1 ? n : fibonacci(n-1) + fibonacci(n-2);\n\nconst results = Array.from({length:10}, (_,i) => fibonacci(i));\nconsole.log("Fibonacci:", results.join(", "));\n\nconst greet = name => \`🚀 Hello, \${name}! Welcome to CompileX!\`;\nconsole.log(greet("Coder"));` },
+  { id:54, name:'C++', ext:'cpp', icon:'⚙️',
+    code:`#include <iostream>\nusing namespace std;\n\nint fibonacci(int n) {\n    if (n <= 1) return n;\n    return fibonacci(n-1) + fibonacci(n-2);\n}\n\nint main() {\n    cout << "Hello from CompileX!" << endl;\n    for(int i=0; i<10; i++)\n        cout << "fib(" << i << ") = " << fibonacci(i) << endl;\n    return 0;\n}` },
+  { id:62, name:'Java', ext:'java', icon:'☕',
+    code:`public class Main {\n    static int fibonacci(int n) {\n        if (n <= 1) return n;\n        return fibonacci(n-1) + fibonacci(n-2);\n    }\n    public static void main(String[] args) {\n        System.out.println("Hello from CompileX!");\n        for(int i=0; i<10; i++)\n            System.out.printf("fib(%d) = %d%n", i, fibonacci(i));\n    }\n}` },
+  { id:50, name:'C', ext:'c', icon:'🔵',
+    code:`#include <stdio.h>\n\nint fibonacci(int n) {\n    if (n <= 1) return n;\n    return fibonacci(n-1) + fibonacci(n-2);\n}\n\nint main() {\n    printf("Hello from CompileX!\\n");\n    for(int i=0; i<10; i++)\n        printf("fib(%d) = %d\\n", i, fibonacci(i));\n    return 0;\n}` },
+  { id:60, name:'Go', ext:'go', icon:'🐹',
+    code:`package main\nimport "fmt"\n\nfunc fibonacci(n int) int {\n    if n <= 1 { return n }\n    return fibonacci(n-1) + fibonacci(n-2)\n}\n\nfunc main() {\n    fmt.Println("Hello from CompileX!")\n    for i:=0; i<10; i++ {\n        fmt.Printf("fib(%d) = %d\\n", i, fibonacci(i))\n    }\n}` },
+  { id:72, name:'Ruby', ext:'rb', icon:'💎',
+    code:`# Ruby 🚀\ndef fibonacci(n)\n  return n if n <= 1\n  fibonacci(n-1) + fibonacci(n-2)\nend\n\nputs "Hello from CompileX!"\n10.times { |i| puts "fib(#{i}) = #{fibonacci(i)}" }` },
+  { id:43, name:'Bash', ext:'sh', icon:'🖥️',
+    code:`#!/bin/bash\necho "Hello from CompileX!"\necho "System: $(uname -s)"\nfor i in {1..8}; do\n  echo "Line $i: Executing..."\ndone\necho "Done! 🎉"` },
+];
+
+let curLang = LANGS[0], curOutTab = 'output', runStart = null;
+let compilerInited = false;
+
+// =====================================================
+// COMPILER INIT
+// =====================================================
+function initCompiler() {
+  if (compilerInited) return;
+  compilerInited = true;
+  const bar = document.getElementById('langTabsBar');
+  LANGS.forEach(lang => {
+    const tab = document.createElement('button');
+    tab.className = 'lang-tab' + (lang.id === curLang.id ? ' active' : '');
+    tab.dataset.id = lang.id;
+    tab.innerHTML = `${lang.icon} ${lang.name}`;
+    tab.onclick = () => selectLang(lang);
+    bar.appendChild(tab);
+  });
+  selectLang(LANGS[0]);
+  setupEditor();
+}
+
+function selectLang(lang) {
+  curLang = lang;
+  document.getElementById('code-editor').value = lang.code;
+  document.getElementById('fileLabel').textContent = `main.${lang.ext}`;
+  document.querySelectorAll('.lang-tab').forEach(t => t.classList.toggle('active', parseInt(t.dataset.id) === lang.id));
+  updateLineNums();
+}
+
+function setupEditor() {
+  const ed = document.getElementById('code-editor');
+  ed.addEventListener('input', updateLineNums);
+  ed.addEventListener('scroll', () => document.getElementById('lineNums').scrollTop = ed.scrollTop);
+  ed.addEventListener('keydown', e => {
+    if (e.key === 'Tab') {
+      e.preventDefault();
+      const s = ed.selectionStart;
+      ed.value = ed.value.substring(0,s) + '  ' + ed.value.substring(ed.selectionEnd);
+      ed.selectionStart = ed.selectionEnd = s+2;
+      updateLineNums();
+    }
+  });
+  ed.addEventListener('keyup', updateCursor);
+  ed.addEventListener('click', updateCursor);
+}
+
+function updateLineNums() {
+  const ed = document.getElementById('code-editor');
+  if (!ed) return;
+  const lines = ed.value.split('\n');
+  const active = ed.value.substr(0, ed.selectionStart).split('\n').length;
+  document.getElementById('lineNums').innerHTML = lines.map((_,i) =>
+    `<div class="ln${i+1===active?' active':''}">${i+1}</div>`).join('');
+}
+
+function updateCursor() {
+  const ed = document.getElementById('code-editor');
+  if (!ed) return;
+  const parts = ed.value.substr(0, ed.selectionStart).split('\n');
+  document.getElementById('cursorInfo').textContent = `Ln ${parts.length}, Col ${parts[parts.length-1].length+1}`;
+  updateLineNums();
+}
+
+// =====================================================
+// RUN CODE — Real Judge0 API Execution
+// =====================================================
+
+// ⚙️ Paste your RapidAPI key below to enable live execution.
+// Get a free key at: https://rapidapi.com/judge0-official/api/judge0-ce
+const JUDGE0_API_KEY = 'YOUR_RAPIDAPI_KEY_HERE';
+const JUDGE0_HOST    = 'judge0-ce.p.rapidapi.com';
+const USE_LIVE_API   = JUDGE0_API_KEY !== 'YOUR_RAPIDAPI_KEY_HERE';
+
+async function runCode() {
+  const code  = document.getElementById('code-editor').value.trim();
+  const stdin = document.getElementById('stdin-area').value;
+  if (!code) return;
+
+  const btn = document.getElementById('runBtn');
+  btn.classList.add('running');
+  btn.textContent = 'Running…';
+  setStat('run', 'Executing…');
+  clearOutputDisplay();
+  runStart = Date.now();
+
+  try {
+    if (USE_LIVE_API) {
+      await runLive(code, stdin);
+    } else {
+      await runViaGlot(code, stdin);
+    }
+  } catch(err) {
+    showOut([
+      {t:'Execution failed.', c:'err'},
+      {t: err.message || String(err), c:'err'},
+      {t:'', c:''},
+      {t:'To enable live execution, add a Judge0 API key at the top of the script.', c:'dim'},
+      {t:'Free key: rapidapi.com/judge0-official/api/judge0-ce', c:'dim'},
+    ]);
+    setStat('err', 'Error');
+  }
+
+  runCount++;
+  combo++;
+  if (comboTimer) clearTimeout(comboTimer);
+  comboTimer = setTimeout(() => { combo = 0; }, 8000);
+
+  btn.classList.remove('running');
+  btn.innerHTML = '▶  Run Code';
+
+  const xpEarned = combo >= 3 ? 75 : 50;
+  addXP(xpEarned);
+  if (combo >= 3) showCombo(combo);
+}
+
+// ── Judge0 via RapidAPI (requires key) ────────────────
+async function runLive(code, stdin) {
+  // Submit
+  const submitRes = await fetch(`https://${JUDGE0_HOST}/submissions?base64_encoded=false&wait=false`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-RapidAPI-Key': JUDGE0_API_KEY,
+      'X-RapidAPI-Host': JUDGE0_HOST,
+    },
+    body: JSON.stringify({
+      language_id: curLang.id,
+      source_code:  code,
+      stdin:        stdin || '',
+    }),
+  });
+  if (!submitRes.ok) throw new Error(`Submission failed: HTTP ${submitRes.status}`);
+  const { token } = await submitRes.json();
+
+  // Poll until finished
+  let result;
+  for (let i = 0; i < 20; i++) {
+    await sleep(800);
+    const pollRes = await fetch(
+      `https://${JUDGE0_HOST}/submissions/${token}?base64_encoded=false&fields=stdout,stderr,compile_output,status,time,memory`,
+      { headers: { 'X-RapidAPI-Key': JUDGE0_API_KEY, 'X-RapidAPI-Host': JUDGE0_HOST } }
+    );
+    result = await pollRes.json();
+    if (result.status && result.status.id > 2) break; // not queued/processing
+  }
+
+  displayResult(result);
+}
+
+// ── Fallback: Piston API (no key needed, good coverage) ───
+async function runViaGlot(code, stdin) {
+  // Language map for Piston (https://emkc.org/api/v2/piston)
+  const pistonLang = {
+    71: { language:'python',     version:'3.10.0' },
+    63: { language:'javascript', version:'18.15.0' },
+    54: { language:'c++',        version:'10.2.0' },
+    62: { language:'java',       version:'15.0.2' },
+    50: { language:'c',          version:'10.2.0' },
+    60: { language:'go',         version:'1.16.2' },
+    72: { language:'ruby',       version:'3.0.1' },
+    43: { language:'bash',       version:'5.2.0' },
+  }[curLang.id];
+
+  if (!pistonLang) throw new Error(`Language "${curLang.name}" is not supported in offline mode.`);
+
+  const res = await fetch('https://emkc.org/api/v2/piston/execute', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      language: pistonLang.language,
+      version:  pistonLang.version,
+      files: [{ name: `main.${curLang.ext}`, content: code }],
+      stdin: stdin || '',
+    }),
+  });
+
+  if (!res.ok) throw new Error(`Piston API error: HTTP ${res.status}`);
+  const data = await res.json();
+  const run  = data.run || {};
+
+  // Convert Piston response → Judge0-style shape
+  displayResult({
+    stdout:         run.stdout || '',
+    stderr:         run.stderr || '',
+    compile_output: data.compile?.stderr || data.compile?.output || '',
+    status:         { id: run.code === 0 ? 3 : 11, description: run.code === 0 ? 'Accepted' : 'Runtime Error' },
+    time:           (run.wall_time / 1000).toFixed(3),
+    memory:         null,
+  });
+}
+
+// ── Render result (shared by both paths) ──────────────
+function displayResult(result) {
+  const elapsed = ((Date.now() - runStart) / 1000).toFixed(2);
+  const lines   = [];
+
+  const stdout  = (result.stdout         || '').trimEnd();
+  const stderr  = (result.stderr         || '').trimEnd();
+  const compile = (result.compile_output || '').trimEnd();
+  const status  = result.status?.description || 'Unknown';
+  const apiTime = result.time ? `${result.time}s` : `${elapsed}s`;
+  const exitOk  = result.status?.id === 3; // 3 = Accepted
+
+  // Compile errors
+  if (compile) {
+    lines.push({t: 'Compilation Error', c: 'err'});
+    lines.push({t: '', c: ''});
+    compile.split('\n').forEach(l => lines.push({t: l, c: 'err'}));
+    lines.push({t: '', c: ''});
+  }
+
+  // Standard output
+  if (stdout) {
+    stdout.split('\n').forEach(l => lines.push({t: l, c: 'ok'}));
+  }
+
+  // Standard error / runtime error
+  if (stderr) {
+    if (stdout) lines.push({t: '', c: ''});
+    lines.push({t: 'stderr:', c: 'err'});
+    stderr.split('\n').forEach(l => lines.push({t: l, c: 'err'}));
+  }
+
+  // Nothing at all
+  if (!stdout && !stderr && !compile) {
+    lines.push({t: '(no output)', c: 'dim'});
+  }
+
+  lines.push({t: '', c: ''});
+  lines.push({
+    t: `${exitOk ? '✓' : '✗'} ${status} · ${apiTime}${result.memory ? ` · ${result.memory} KB` : ''}`,
+    c: exitOk ? 'info' : 'err',
+  });
+  lines.push({
+    t: `Run #${runCount + 1} · ${combo >= 3 ? 'Combo bonus — +75 XP' : '+50 XP earned'}`,
+    c: 'gold',
+  });
+
+  showOut(lines);
+  document.getElementById('execMeta').textContent = `⏱ ${apiTime}`;
+  setStat('idle', exitOk ? `Done in ${apiTime}` : 'Runtime error');
+}
+
+function showOut(lines) {
+  const area = document.getElementById('output-display');
+  area.innerHTML = '';
+  lines.forEach(({t,c}) => {
+    const s = document.createElement('span');
+    s.className = `oline ${c||''}`;
+    s.textContent = t;
+    area.appendChild(s);
+    area.appendChild(document.createTextNode('\n'));
+  });
+  area.scrollTop = area.scrollHeight;
+}
+
+function clearOutputDisplay() {
+  const mode = USE_LIVE_API ? 'Judge0 (Live)' : 'Piston API';
+  document.getElementById('output-display').innerHTML = `
+    <div class="out-placeholder">
+      <div class="big-icon" style="animation:none;font-size:2rem;">⏳</div>
+      <p style="font-weight:700;color:var(--text2);">Running ${curLang.name} code…</p>
+      <p style="font-size:0.75rem;color:var(--muted);margin-top:6px;">Engine: ${mode}</p>
+    </div>`;
+}
+
+function switchOutTab(tab) {
+  curOutTab = tab;
+  document.querySelectorAll('.otab').forEach(t => t.classList.remove('active'));
+  document.getElementById(`otab-${tab}`).classList.add('active');
+  if (tab === 'info') {
+    showOut([
+      {t:'── Language ───────────────────────────────', c:'info'},
+      {t:`Name        : ${curLang.name}`, c:''},
+      {t:`File        : main.${curLang.ext}`, c:''},
+      {t:`Judge0 ID   : ${curLang.id}`, c:''},
+      {t:'', c:''},
+      {t:'── Runtime ────────────────────────────────', c:'info'},
+      {t:'Engine      : Judge0 CE', c:''},
+      {t:'Time Limit  : 5s · Memory: 128MB', c:''},
+    ]);
+  } else if (tab === 'stats') {
+    showOut([
+      {t:'── Your Stats ─────────────────────────────', c:'gold'},
+      {t:`Level       : ${level}`, c:'ok'},
+      {t:`XP          : ${xp} / ${maxXp}`, c:'ok'},
+      {t:`Coins       : 🪙 ${coins}`, c:'ok'},
+      {t:`Streak      : 🔥 ${streak} days`, c:'ok'},
+      {t:`Total Runs  : ${runCount}`, c:'ok'},
+      {t:`Combo       : ${combo >= 3 ? 'Active ×'+combo : 'Run 3× quickly to activate'}`, c:'ok'},
+      {t:'', c:''},
+      {t:'── Tip ─────────────────────────────────────', c:'info'},
+      {t:'Run 3 or more times quickly to activate the combo multiplier.', c:'dim'},
+      {t:'Combo multiplier gives +75 XP per run instead of +50.', c:'dim'},
+    ]);
+  }
+}
+
+// =====================================================
+// CHALLENGES DATA & RENDER
+// =====================================================
+const CHALLENGES = [
+  { id:1, title:'Reverse a String', diff:'easy', xp:150, lang:['Python','JavaScript'], desc:'Write a function that returns a reversed copy of a string. Avoid using built-in reverse methods.', solvers:2841, locked:false },
+  { id:2, title:'FizzBuzz', diff:'easy', xp:100, lang:['Python','C++'], desc:'Print integers 1–100. Replace multiples of 3 with Fizz, multiples of 5 with Buzz, and multiples of both with FizzBuzz.', solvers:5120, locked:false },
+  { id:3, title:'Two Sum', diff:'medium', xp:300, lang:['Python','JavaScript','Java'], desc:'Given an integer array and a target value, return the indices of the two numbers that add up to the target. Aim for an O(n) solution.', solvers:1204, locked:false },
+  { id:4, title:'Binary Search', diff:'medium', xp:350, lang:['C++','Java'], desc:'Implement binary search on a sorted array. Return the index of the target element, or -1 if it does not exist.', solvers:892, locked:false },
+  { id:5, title:'Fibonacci Sequence', diff:'easy', xp:120, lang:['Python','JavaScript'], desc:'Generate the first N numbers in the Fibonacci sequence using both recursive and iterative approaches.', solvers:3400, locked:false },
+  { id:6, title:'Valid Parentheses', diff:'medium', xp:280, lang:['Python','JavaScript','C++'], desc:'Given a string containing brackets, determine whether it is properly balanced. Use a stack-based approach.', solvers:1556, locked:false },
+  { id:7, title:'Merge Sort', diff:'hard', xp:600, lang:['C++','Java','Python'], desc:'Implement the merge sort algorithm from scratch on an unsorted array. Unlocks at Level 8.', solvers:342, locked:level < 8 },
+  { id:8, title:'LRU Cache', diff:'hard', xp:800, lang:['Python','Java'], desc:'Design a Least Recently Used cache with O(1) time complexity for both get and put operations. Unlocks at Level 10.', solvers:198, locked:level < 10 },
+];
+
+let challengeFilter = 'all';
+
+function filterChallenges(f, btn) {
+  challengeFilter = f;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderChallenges();
+}
+
+function renderChallenges() {
+  const grid = document.getElementById('challengesGrid');
+  if (!grid) return;
+  const filtered = challengeFilter === 'all' ? CHALLENGES :
+    CHALLENGES.filter(c => c.diff === challengeFilter || c.lang.some(l => l.toLowerCase().includes(challengeFilter)));
+  grid.innerHTML = '';
+  filtered.forEach(ch => {
+    const div = document.createElement('div');
+    div.className = `ch-card ${ch.diff}`;
+    div.innerHTML = `
+      <div class="ch-header">
+        <div class="ch-title">${ch.title}</div>
+        <div class="ch-xp-badge">+${ch.xp} XP</div>
+      </div>
+      <span class="challenge-tag tag-${ch.diff}" style="margin-bottom:12px;display:inline-flex;">${ch.diff.toUpperCase()}</span>
+      <div class="ch-desc">${ch.desc}</div>
+      <div class="ch-footer">
+        ${ch.lang.map(l => `<span class="ch-lang">${l}</span>`).join('')}
+        <span class="ch-solved">✓ ${ch.solvers.toLocaleString()} solved</span>
+      </div>
+      ${ch.locked ? `<div class="ch-lock">🔒<div style="font-size:0.8rem;font-family:'Nunito',sans-serif;font-weight:700;color:var(--text2);margin-top:8px;">Unlocks at Level ${ch.id===7?8:10}</div></div>` : ''}
+    `;
+    if (!ch.locked) {
+      div.onclick = () => {
+        addXP(20);
+        showPage('compiler');
+      };
+    }
+    grid.appendChild(div);
+  });
+}
+
+// =====================================================
+// LEADERBOARD DATA & RENDER
+// =====================================================
+const LB_DATA = [
+  { pos:1, avatar:'🦅', name:'CodeNinja_X', title:'Algorithm Specialist', xp:12480, streak:42, badges:['🔥','🏆','💎'], color:'rgba(255,217,61,0.15)', me:false },
+  { pos:2, avatar:'🐉', name:'ByteWizard', title:'Problem Solver', xp:11200, streak:28, badges:['⚡','🎯'], color:'rgba(107,203,255,0.1)', me:false },
+  { pos:3, avatar:'🦊', name:'AlgoQueen', title:'Data Structures Expert', xp:9850, streak:21, badges:['🏅','🔥'], color:'rgba(255,107,157,0.1)', me:false },
+  { pos:4, avatar:'🤖', name:'NullPointer99', title:'Systems Programmer', xp:8400, streak:14, badges:['⚙️'], color:'', me:false },
+  { pos:5, avatar:'🦁', name:'RecursiveRaj', title:'Recursion Enthusiast', xp:7600, streak:7, badges:['🐍'], color:'', me:false },
+  { pos:6, avatar:'🐺', name:'LoopBreaker', title:'JavaScript Developer', xp:6900, streak:9, badges:['🟨'], color:'', me:false },
+  { pos:7, avatar:'🎯', name:'YOU', title:`Level ${level} Coder`, xp:xp, streak:streak, badges:['🚀'], color:'rgba(124,111,255,0.08)', me:true },
+  { pos:8, avatar:'🦋', name:'PythonPriya', title:'ML Enthusiast', xp:2100, streak:3, badges:['🐍'], color:'', me:false },
+];
+
+function renderLeaderboard() {
+  const table = document.getElementById('lbTable');
+  if (!table) return;
+  // update "YOU" row with current xp
+  const you = LB_DATA.find(r => r.me);
+  if (you) { you.xp = xp; you.title = `Level ${level} Coder`; }
+  table.innerHTML = '';
+  LB_DATA.forEach(row => {
+    const div = document.createElement('div');
+    div.className = `lb-row${row.pos <= 3 ? ' top' : ''}${row.me ? ' me' : ''}`;
+    if (row.color) div.style.background = row.color;
+    const posClass = row.pos===1?'pos-1':row.pos===2?'pos-2':row.pos===3?'pos-3':'';
+    const posIcon = row.pos===1?'🥇':row.pos===2?'🥈':row.pos===3?'🥉':row.pos;
+    div.innerHTML = `
+      <div class="lb-pos ${posClass}">${posIcon}</div>
+      <div class="lb-user">
+        <div class="lb-user-avatar" style="background:#eef2ff;">${row.avatar}</div>
+        <div><div class="lb-user-name">${row.name}${row.me?' (You)':''}</div><div class="lb-user-title">${row.title}</div></div>
+      </div>
+      <div class="lb-xp-col">${row.xp.toLocaleString()} XP</div>
+      <div class="lb-streak">🔥 ${row.streak}d</div>
+      <div class="lb-badges-col">${row.badges.join(' ')}</div>
+    `;
+    table.appendChild(div);
+  });
+}
+
+// =====================================================
+// AUTH TABS
+// =====================================================
+function switchAuthTab(tab) {
+  document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById(`atab-${tab}`).classList.add('active');
+  document.getElementById('form-login').style.display = tab==='login'?'block':'none';
+  document.getElementById('form-signup').style.display = tab==='signup'?'block':'none';
+}
+
+// =====================================================
+// COMPILER UTILS
+// =====================================================
+function setStat(type, text) {
+  const d = document.getElementById('sdot');
+  if (d) d.className = `sdot ${type}`;
+  const s = document.getElementById('stext');
+  if (s) s.textContent = text;
+}
+function clearCode() { if(confirm('Clear editor?')) { document.getElementById('code-editor').value=''; updateLineNums(); } }
+function copyCode() { navigator.clipboard.writeText(document.getElementById('code-editor').value); const b=document.getElementById('copyBtn'); b.textContent='✅'; setTimeout(()=>b.textContent='📋',1500); }
+function downloadCode() { const b=new Blob([document.getElementById('code-editor').value],{type:'text/plain'}); const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download=`main.${curLang.ext}`; a.click(); }
+function sleep(ms) { return new Promise(r=>setTimeout(r,ms)); }
+
+// Boot
+updateHUD();
+(function setApiLabel() {
+  const label = USE_LIVE_API ? 'Judge0 · Live' : 'Piston API · Live';
+  const pill = document.getElementById('apiModePill');
+  if (pill) pill.textContent = label;
+})();
+</script>
+</body>
+</html>
